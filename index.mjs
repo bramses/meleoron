@@ -1,5 +1,8 @@
 // read a json file and return the data
-const fs = require("fs");
+import fs from "fs";
+import clipboard from 'clipboardy';
+
+
 
 const readFile = async (file) => {
   return new Promise((resolve, reject) => {
@@ -8,17 +11,6 @@ const readFile = async (file) => {
         reject(err);
       }
       resolve(data);
-    });
-  });
-};
-
-const writeFile = async (file, data) => {
-  return new Promise((resolve, reject) => {
-    fs.writeFile(file, data, (err) => {
-      if (err) {
-        reject(err);
-      }
-      resolve();
     });
   });
 };
@@ -33,6 +25,11 @@ result
 
 <section name=name type=type links={[link]}>
 */
+/**
+ * load a markdown file and parse it into json format
+ * @param {*} md 
+ * @returns 
+ */
 const parseMarkdown = (md) => {
   const sections = {};
   let sectionID = 1;
@@ -49,8 +46,14 @@ const parseMarkdown = (md) => {
       let endOfSection;
       if (i + 3 < lines.length) {
         endOfSection = i + 3;
-        while (!lines[endOfSection].startsWith("# ")) {
+        while (
+          !lines[endOfSection].startsWith("# ") &&
+          endOfSection < lines.length - 1
+        ) {
           endOfSection++;
+        }
+        if (endOfSection === lines.length - 1) {
+          endOfSection = lines.length;
         }
       } else {
         endOfSection = lines.length;
@@ -83,6 +86,11 @@ const parseMarkdown = (md) => {
   };
 };
 
+/**
+ * create backlinks between sections based on linkIds
+ * @param {*} sections 
+ * @returns 
+ */
 const linkSections = (sections = {}) => {
   for (let section in sections) {
     const links = sections[section].links;
@@ -92,34 +100,53 @@ const linkSections = (sections = {}) => {
       sections[section].linkIds.push(`id${sections[link].id}`);
     }
   }
-   
+
   return sections;
 };
 
+/**
+ * convert sections JSON to html
+ * @param {*} sections 
+ * @returns 
+ */
 const convertToHTML = (sections) => {
-    const result = [];
-    for (let section in sections) {
-        const { name, type, linkIds, content, id } = sections[section];
-        result.push(
-        `<section id='id${id}' name='${name}' type='${type}' links=\{${JSON.stringify(
-            linkIds
-        )}\}>
-        # ${name}
-        \n${content}\n
-        </section>`
-        );
-    }
-    return result.join("\n");
-}
+  const result = [];
+  for (let section in sections) {
+    const { name, type, linkIds, content, id } = sections[section];
+    result.push(
+      `<section id='id${id}' name='${name}' type='${type}' links=\{${JSON.stringify(
+        linkIds
+      )}\}>
+# ${name}
+\n${content}\n
+</section>`
+    );
+  }
+  return result.join("\n");
+};
 
 const main = async () => {
-  const md = await readFile("test.md");
-  const parsed = parseMarkdown(md);
-  // console.log(html);
-  linkSections(parsed.sections);
-  //console.log(sections);
-    const html = convertToHTML(parsed.sections);
-    console.log(html);
+  try {
+    const cli_args = process.argv.slice(2);
+    const input = cli_args[0];
+    let html = ""
+    if (input && input === 'cb') {
+      const input = await clipboard.read();
+      const parsed = parseMarkdown(input);
+      parsed.sections = linkSections(parsed.sections);
+      html = convertToHTML(parsed.sections);
+    } else {
+      const md = await readFile("test.md");
+      const parsed = parseMarkdown(md);
+      parsed.sections = linkSections(parsed.sections);
+      html = convertToHTML(parsed.sections); 
+    }
+  
+    clipboard.writeSync(html);
+  } catch (err) {
+    console.log(err);
+    clipboard.writeSync(err);
+  }
 };
 
 main();
