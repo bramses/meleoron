@@ -114,7 +114,7 @@ const convertToHTML = (sections) => {
   for (let section in sections) {
     const { name, type, linkIds, content, id } = sections[section];
     result.push(
-      `<section id='id${id}' name='${name}' type='${type}' links=\{${JSON.stringify(
+      `<section id="id${id}" name="${name}" type="${type}" links=\{${JSON.stringify(
         linkIds
       )}\}>
 # ${name}
